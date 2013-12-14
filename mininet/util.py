@@ -155,7 +155,7 @@ def makeIntfPair( intf1, intf2 ):
     quietRun( 'ip link del ' + intf2 )
     # Create new pair
     cmd = 'ip link add name ' + intf1 + ' type veth peer name ' + intf2
-    return quietRun( cmd )
+    return errFail( cmd )
 
 def retry( retries, delaySecs, fn, *args, **keywords ):
     """Try something several times before giving up.
