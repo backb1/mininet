@@ -25,7 +25,6 @@ class MultiGraph( object ):
 
     def add_edge( self, src, dest ):
         "Add edge to graph"
-        src, dest = sorted( ( src, dest ) )
         self.add_node( src )
         self.add_node( dest )
         self.data[ src ].append( dest )
@@ -98,9 +97,9 @@ class Topo(object):
         if not opts and self.lopts:
             opts = self.lopts
         self.addPort(node1, node2, port1, port2)
-        key = tuple(self.sorted([node1, node2]))
+        key = tuple([node1, node2])
         self.link_info[key] = opts
-        self.g.add_edge(*key)
+        self.g.add_edge(node1, node2)
         return key
 
     def addPort(self, src, dst, sport=None, dport=None):
@@ -154,7 +153,7 @@ class Topo(object):
         if not sort:
             return self.g.edges()
         else:
-            links = [tuple(self.sorted(e)) for e in self.g.edges()]
+            links = [tuple(e) for e in self.g.edges()]
             return sorted( links, key=naturalSeq )
 
     def port(self, src, dst):
@@ -172,12 +171,10 @@ class Topo(object):
 
     def linkInfo( self, src, dst ):
         "Return link metadata"
-        src, dst = self.sorted([src, dst])
         return self.link_info[(src, dst)]
 
     def setlinkInfo( self, src, dst, info ):
         "Set link metadata"
-        src, dst = self.sorted([src, dst])
         self.link_info[(src, dst)] = info
 
     def nodeInfo( self, name ):
