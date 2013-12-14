@@ -33,7 +33,7 @@ import sys
 import time
 import os
 import atexit
-
+import traceback
 from mininet.log import info, output, error
 from mininet.term import makeTerms, runX11
 from mininet.util import quietRun, isShellBuiltin, dumpNodeConnections
@@ -82,6 +82,8 @@ class CLI( Cmd ):
                 break
             except KeyboardInterrupt:
                 output( '\nInterrupt\n' )
+            except:
+                output( traceback.format_exc() )
 
     def emptyline( self ):
         "Don't repeat last command when you hit return."
