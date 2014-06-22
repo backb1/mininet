@@ -68,6 +68,10 @@ class Intf( object ):
             self.ip, self.prefixLen = ipstr, prefixLen
             return self.ifconfig( '%s/%s' % ( ipstr, prefixLen ) )
 
+    def setAdditionalIPs(self, *ips):
+        for ip in ips:
+            self.cmd( 'ip addr add %s dev %s' % (ip, self.name) )
+
     def setMAC( self, macstr ):
         """Set the MAC address for an interface.
            macstr: MAC address as string"""
@@ -140,7 +144,7 @@ class Intf( object ):
         results[ name ] = result
         return result
 
-    def config( self, mac=None, ip=None, ifconfig=None,
+    def config( self, mac=None, ip=None, ips=None, ifconfig=None,
                 up=True, **_params ):
         """Configure Node according to (optional) parameters:
            mac: MAC address
@@ -154,6 +158,7 @@ class Intf( object ):
         r = {}
         self.setParam( r, 'setMAC', mac=mac )
         self.setParam( r, 'setIP', ip=ip )
+        self.setParam( r, 'setAdditionalIPs', ips=ips )
         self.setParam( r, 'isUp', up=up )
         self.setParam( r, 'ifconfig', ifconfig=ifconfig )
         self.updateIP()
