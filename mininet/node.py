@@ -16,6 +16,11 @@ Host: a virtual host. By default, a host is simply a shell; commands
 CPULimitedHost: a virtual host whose CPU bandwidth is limited by
     RT or CFS bandwidth limiting.
 
+HostWithPrivateDirs: a virtual host that has user-specified private
+    directories. These may be temporary directories stored as a tmpfs,
+    or persistent directories that are mounted from another directory in
+    the root filesystem.
+
 Switch: superclass for switch nodes.
 
 UserSwitch: a switch using the user-space switch from the OpenFlow
@@ -725,6 +730,33 @@ class CPULimitedHost( Host ):
         mountCgroups()
         cls.inited = True
 
+class HostWithPrivateDirs( Host ):
+    "Host with private directories"
+
+    def __init__( self, name, *args, **kwargs ):
+        "privateDirs: list of private directory strings or tuples"
+        self.name = name
+        self.privateDirs = kwargs.pop( 'privateDirs', [] )
+        Host.__init__( self, name, *args, **kwargs )
+        self.mountPrivateDirs()
+
+    def mountPrivateDirs( self ):
+        "mount private directories"
+        for directory in self.privateDirs:
+            if isinstance( directory, tuple ):
+                # mount given private directory
+                privateDir = directory[ 1 ] % self.__dict__ 
+                mountPoint = directory[ 0 ]
+                self.cmd( 'mkdir -p %s' % privateDir )
+                self.cmd( 'mkdir -p %s' % mountPoint )
+                self.cmd( 'mount --bind %s %s' %
+                               ( privateDir, mountPoint ) )
+            else:
+                # mount temporary filesystem on directory
+                self.cmd( 'mkdir -p %s' % directory ) 
+                self.cmd( 'mount -n -t tmpfs tmpfs %s' % directory )
+
+
 
 # Some important things to note:
 #
@@ -824,6 +856,8 @@ class UserSwitch( Switch ):
                               '(openflow.org)' )
         if self.listenPort:
             self.opts += ' --listen=ptcp:%i ' % self.listenPort
+        else:
+            self.opts += ' --listen=punix:/tmp/%s.listen' % self.name
         self.dpopts = dpopts
 
     @classmethod
@@ -836,7 +870,7 @@ class UserSwitch( Switch ):
         "Run dpctl command"
         listenAddr = None
         if not self.listenPort:
-            listenAddr = 'unix:/tmp/' + self.name
+            listenAddr = 'unix:/tmp/%s.listen' % self.name
         else:
             listenAddr = 'tcp:127.0.0.1:%i' % self.listenPort
         return self.cmd( 'dpctl ' + ' '.join( args ) +
@@ -1076,16 +1110,16 @@ class OVSSwitch( Switch ):
             self.cmd( 'ovs-vsctl add-br', self )
             for intf in self.intfList():
                 if not intf.IP():
-                    self.cmd('ovs-vsctl add-port', self, intf )
-            cmd = ('ovs-vsctl set Bridge %s ' % self +
-                'other_config:datapath-id=%s ' % self.dpid +
-                '-- set-fail-mode %s %s ' % ( self, self.failMode ) +
-                '-- set-controller %s %s ' % ( self, clist ) )
+                    self.cmd( 'ovs-vsctl add-port', self, intf )
+            cmd = ( 'ovs-vsctl set Bridge %s ' % self +
+                    'other_config:datapath-id=%s ' % self.dpid +
+                    '-- set-fail-mode %s %s ' % ( self, self.failMode ) +
+                    '-- set-controller %s %s ' % ( self, clist ) )
         if not self.inband:
             cmd += ( '-- set bridge %s '
                      'other-config:disable-in-band=true ' % self )
         if self.datapath == 'user':
-            cmd +=  '-- set bridge %s datapath_type=netdev ' % self
+            cmd += '-- set bridge %s datapath_type=netdev ' % self
         # Reconnect quickly to controllers (1s vs. 15s max_backoff)
         for uuid in self.controllerUUIDs():
             if uuid.count( '-' ) != 4:
